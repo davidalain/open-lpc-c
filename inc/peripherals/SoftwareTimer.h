@@ -19,25 +19,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPENLPC_SOFTWARETIMER_H_
-#define OPENLPC_SOFTWARETIMER_H_
+#ifndef _SOFTWARE_TIMER_H_
+#define _SOFTWARE_TIMER_H_
 
 #include "core/Types.h"
 
-static const uint8_t STATE_DISABLE = 0;
-static const uint8_t STATE_ENABLE = 1;
-static const uint8_t STATE_OVERFLOW = 2;
+typedef enum {
+	STATE_DISABLE,
+	STATE_STOPED,
+	STATE_RUNNING
+} SoftwareTimerState;
 
-uint16_t SoftwareTimer_Init(uint32_t maxCount);
-uint8_t getState(uint16_t timerId);
-void reset(uint16_t timerId);
-void start(uint16_t timerId);
-void stop(uint16_t timerId);
-void restart(uint16_t timerId);
-void incCounter(uint16_t timerId, uint32_t value);
-
-uint32_t _counter;
-uint32_t _maxCounter;
-uint8_t _state;
+uint16_t SoftwareTimer_Init(uint16_t timerId, uint32_t timeInterval_us, FunctionPointer userHandler);
+SoftwareTimerState SoftwareTimer_getState(uint16_t timerId);
+void SoftwareTimer_reset(uint16_t timerId);
+void SoftwareTimer_start(uint16_t timerId);
+void SoftwareTimer_stop(uint16_t timerId);
 
 #endif /* SOFTWARETIMER_H_ */
