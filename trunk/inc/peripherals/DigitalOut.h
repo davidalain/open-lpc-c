@@ -1,31 +1,23 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * @file     DigitalOut.h
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    File with functions to control digital output.
+ * @version  V1.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ ******************************************************************************/
 
-#ifndef OPENLPC_DIGITALOUT_H_
-#define OPENLPC_DIGITALOUT_H_
+#ifndef _DIGITALOUT_H_
+#define _DIGITALOUT_H_
 
 #include "core/PinNames.h"
 
 void DigitalOut_Init (PinName pin);
+
 void DigitalOut_write (PinName pin, int32_t value);
+void DigitalOut_high(PinName pin);
+void DigitalOut_low(PinName pin);
+
 int32_t DigitalOut_read (PinName pin);
 
 #endif

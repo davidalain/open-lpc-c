@@ -20,18 +20,34 @@
  */
 
 
-#ifndef OPENLPC_INTERRUPT_IN_H_
-#define OPENLPC_INTERRUPT_IN_H_
+#ifndef _INTERRUPT_IN_H_
+#define _INTERRUPT_IN_H_
 
 #include "core/PinNames.h"
 
+typedef enum{
+	EDGE,
+	LEVEL
+}InterruptSense;
+
+typedef enum{
+	SINGLE_EDGE,
+	BOTH_EDGES
+}InterruptEdge;
+
+typedef enum{
+	FALL_EDGE_OR_LOW_LEVEL,
+	RISING_EDGE_OR_HIGH_LEVEL
+}InterruptEvent;
+
 void InterruptIn_Init (PinName pin);
-void InterruptIn_configure (PinName pin, uint32_t sense, uint32_t single, uint32_t event);
+void InterruptIn_configure (PinName pin, InterruptSense sense, InterruptEdge edge, InterruptEvent event);
 void InterruptIn_enable (PinName pin);
 void InterruptIn_disable (PinName pin);
 int32_t InterruptIn_read (PinName pin);
 void InterruptIn_clear (PinName pin);
 void InterruptIn_default_handler(PinName pin);
+void InterruptIn_setUserHandler(PinName pin, FunctionPointer usrHandler);
 
 
 #endif

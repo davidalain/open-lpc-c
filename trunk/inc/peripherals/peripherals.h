@@ -19,8 +19,8 @@
 * along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef OPENLPC_PERIPHERALS_H_
-#define OPENLPC_PERIPHERALS_H_
+#ifndef _PERIPHERALS_H_
+#define _PERIPHERALS_H_
 
 //Include common peripherals
 #include "peripherals/DigitalIn.h"

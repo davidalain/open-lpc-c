@@ -19,8 +19,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PWM_H_
-#define PWM_H_
+#ifndef _PWM_H_
+#define _PWM_H_
 
 #include "peripherals/HardwareTimer.h"
 

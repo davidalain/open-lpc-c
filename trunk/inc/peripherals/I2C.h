@@ -1,26 +1,13 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
+ * @file     I2C.h
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    Manages the reads/writes on I2C ports.
+ * @version  V1.0
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ ******************************************************************************/
 
-#ifndef OPENLPC_I2C_H_
-#define OPENLPC_I2C_H_
+#ifndef _I2C_H_
+#define _I2C_H_
 
 #include "core/PinNames.h"
 #include "core/Types.h"
@@ -77,7 +64,7 @@ typedef enum {
 #define I2C_TIME_OUT          	11
 #define I2C_OK                	12
 
-#define I2C_BUFFER_SIZE						6
+#define I2C_BUFFER_SIZE						30
 #define I2C_MAX_TIMEOUT						0x00FFFFFF
 #define I2C_DEFAULT_DEVICE_I2C_ADDRESS		0xA0
 
@@ -85,5 +72,9 @@ void I2C_Init(I2CPortNum port);
 void I2C_default_handler(I2CPortNum port);
 bool I2C_start(I2CPortNum port);
 void I2C_stop(I2CPortNum port);
+
+void I2C_write(I2CPortNum port, uint8_t deviceAddress, uint8_t* data, uint32_t size);
+//uint32_t I2C_read(I2CPortNum port, uint8_t deviceAddress, uint8_t* rxBuffer, uint32_t bufferSize, uint32_t bytesToRead);
+void I2C_read(I2CPortNum port, uint8_t deviceAddress, uint8_t* txBuffer, uint32_t bytesToWrite, uint8_t* allocatedRxBuffer, uint32_t bytesToRead);
 
 #endif

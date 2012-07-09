@@ -19,8 +19,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPENLPC_SERIAL_H_
-#define OPENLPC_SERIAL_H_
+#ifndef _SERIAL_H_
+#define _SERIAL_H_
 
 #include "core/PinNames.h"
 #include "core/Types.h"
@@ -70,13 +70,14 @@ typedef enum {
 //LCR Register bit 3
 //0b = Disable, 1b = Enable
 typedef enum {
-	SERIAL_ENABLE_PARITY = 0,
-	SERIAL_DISABLE_PARITY = 1 << 3
+	SERIAL_DISABLE_PARITY = 0,
+	SERIAL_ENABLE_PARITY = 1 << 3
 }SerialEnableParity;
 
 //LCR Register bits 5:4
 //00b to 11b
 typedef enum {
+	SERIAL_PARITY_NONE = 0,
 	SERIAL_PARITY_ODD = 0,
 	SERIAL_PARITY_EVEN = 1 << 4,
 	SERIAL_PARITY_FORCE_1_STICK = 2 << 4,
@@ -108,17 +109,21 @@ typedef enum {
 #endif
 
 
-void Serial_Init(SerialPortNum portNum, uint8_t* allocatedTxBuffer, uint16_t txBufferSize, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize);
+#define	SERIAL_DEFAULT_BUFFER_SIZE	32
+
+//void Serial_Init(SerialPortNum portNum, uint8_t* allocatedTxBuffer, uint16_t txBufferSize, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize);
+void Serial_Init(SerialPortNum portNum, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize);
 void Serial_default_handler(SerialPortNum portNum);
 void Serial_configure(SerialPortNum portNum, SerialBaud baudrate, SerialWordLength wordLength, SerialStopBits stopBits, SerialEnableParity enableParity, SerialParityType parityType);
-uint16_t Serial_available(SerialPortNum portNum);
+uint32_t Serial_available(SerialPortNum portNum);
 
 int16_t Serial_read(SerialPortNum portNum, uint8_t* buffer, uint16_t bufferSize);
-int8_t Serial_write(SerialPortNum portNum, uint8_t* data, uint16_t size);
+//int8_t Serial_write(SerialPortNum portNum, uint8_t* data, uint16_t size);
+void Serial_write(SerialPortNum port, uint8_t *data, uint16_t size);
 
 void Serial_clearBuffers(SerialPortNum portNum);
 void Serial_readNext(SerialPortNum portNum);
-void Serial_writeNext(SerialPortNum portNum);
+//void Serial_writeNext(SerialPortNum portNum);
 
 
 #endif
