@@ -1,9 +1,10 @@
-/*
- * startup.c
+/**************************************************************************//**
+ * @file     startup.c
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    Startup file to configure and link hardware interruptions with software user handlers
+ * @version  V1.0
  *
- *  Created on: 30/03/2012
- *      Author: David Alain
- */
+ ******************************************************************************/
 
 
 #if defined (__cplusplus)
@@ -23,6 +24,7 @@ extern void __libc_init_array(void);
 
 #define WEAK __attribute__ ((weak))
 #define ALIAS(f) __attribute__ ((weak, alias (#f)))
+#define __USE_CMSIS
 
 // Code Red - if CMSIS is being used, then SystemInit() routine
 // will be called by startup code rather than in application's main()
@@ -37,8 +39,20 @@ extern void __libc_init_array(void);
 #endif
 
 #include "core/PinNames.h"
-#include "peripherals/peripherals.h"
+#include "peripherals/I2C.h"
+#include "peripherals/Serial.h"
 #include "peripherals/HardwareTimer.h"
+#include "peripherals/InterruptIn.h"
+
+
+#if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
+extern LPC_GPIO_TypeDef (* const LPC_GPIO[4]);
+#elif defined (TARGET_LPC17XX)
+extern LPC_GPIO_TypeDef (* const LPC_GPIO[5]);
+#endif
+
+
+FunctionPointer _userHandlerPtr[ NUMBER_IO_PINS ];
 
 //*****************************************************************************
 #if defined (__cplusplus)
@@ -394,15 +408,15 @@ void ResetISR(void)
 	//
 	pulSrc = (unsigned char *)&_etext;
 	for(pulDest = (unsigned char *)&_data; pulDest < (unsigned char *)&_edata; )
-	{
 		*pulDest++ = *pulSrc++;
-	}
+
 
 	//
 	// Zero fill the bss segment.
 	//
 	for(pulDest = (unsigned char *)&_bss; pulDest < (unsigned char *)&_ebss; pulDest++)
 		*pulDest = 0;
+
 
 #ifdef __USE_CMSIS
 	SystemInit();
@@ -518,6 +532,7 @@ void Timer32_1_IRQ_handler(void){
 void UART0_IRQ_handler(void){
 	Serial_default_handler(SERIAL_PORT_0);
 }
+
 #if defined (TARGET_LPC17XX)
 void UART1_IRQ_handler(void){
 	Serial_default_handler(SERIAL_PORT_1);
@@ -538,19 +553,71 @@ void WDT_IRQ_handler(void){
 
 }
 void BOD_IRQ_handler(void){
-
+	while(1);
 }
 void PIOINT0_IRQ_handler(void){
+	uint32_t status = LPC_GPIO[0]->MIS;
 
+	switch(status){
+	case 0x001: InterruptIn_default_handler(P0_0); break;
+	case 0x002: InterruptIn_default_handler(P0_1); break;
+	case 0x004: InterruptIn_default_handler(P0_2); break;
+	case 0x008: InterruptIn_default_handler(P0_3); break;
+	case 0x010: InterruptIn_default_handler(P0_4); break;
+	case 0x020: InterruptIn_default_handler(P0_5); break;
+	case 0x040: InterruptIn_default_handler(P0_6); break;
+	case 0x080: InterruptIn_default_handler(P0_7); break;
+	case 0x100: InterruptIn_default_handler(P0_8); break;
+	case 0x200: InterruptIn_default_handler(P0_9); break;
+	case 0x400: InterruptIn_default_handler(P0_10); break;
+	case 0x800: InterruptIn_default_handler(P0_11); break;
+	}
 }
 void PIOINT1_IRQ_handler(void){
+	uint32_t status = LPC_GPIO[1]->MIS;
 
+	switch(status){
+	case 0x001: InterruptIn_default_handler(P1_0); break;
+	case 0x002: InterruptIn_default_handler(P1_1); break;
+	case 0x004: InterruptIn_default_handler(P1_2); break;
+	case 0x008: InterruptIn_default_handler(P1_3); break;
+	case 0x010: InterruptIn_default_handler(P1_4); break;
+	case 0x020: InterruptIn_default_handler(P1_5); break;
+	case 0x040: InterruptIn_default_handler(P1_6); break;
+	case 0x080: InterruptIn_default_handler(P1_7); break;
+	case 0x100: InterruptIn_default_handler(P1_8); break;
+	case 0x200: InterruptIn_default_handler(P1_9); break;
+	case 0x400: InterruptIn_default_handler(P1_10); break;
+	case 0x800: InterruptIn_default_handler(P1_11); break;
+	}
 }
 void PIOINT2_IRQ_handler(void){
+	uint32_t status = LPC_GPIO[2]->MIS;
 
+	switch(status){
+	case 0x001: InterruptIn_default_handler(P2_0); break;
+	case 0x002: InterruptIn_default_handler(P2_1); break;
+	case 0x004: InterruptIn_default_handler(P2_2); break;
+	case 0x008: InterruptIn_default_handler(P2_3); break;
+	case 0x010: InterruptIn_default_handler(P2_4); break;
+	case 0x020: InterruptIn_default_handler(P2_5); break;
+	case 0x040: InterruptIn_default_handler(P2_6); break;
+	case 0x080: InterruptIn_default_handler(P2_7); break;
+	case 0x100: InterruptIn_default_handler(P2_8); break;
+	case 0x200: InterruptIn_default_handler(P2_9); break;
+	case 0x400: InterruptIn_default_handler(P2_10); break;
+	case 0x800: InterruptIn_default_handler(P2_11); break;
+	}
 }
 void PIOINT3_IRQ_handler(void){
+	uint32_t status = LPC_GPIO[3]->MIS;
 
+	switch(status){
+	case 0x001: InterruptIn_default_handler(P3_0); break;
+	case 0x002: InterruptIn_default_handler(P3_1); break;
+	case 0x004: InterruptIn_default_handler(P3_2); break;
+	case 0x008: InterruptIn_default_handler(P3_3); break;
+	}
 }
 void USB_IRQ_handler(void){
 
