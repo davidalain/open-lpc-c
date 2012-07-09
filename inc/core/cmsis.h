@@ -27,16 +27,16 @@ extern "C" {
 #endif
 
 #if defined (TARGET_LPC17XX)
-	#include "LPC17xx.h"
+	#include "core/LPC17xx.h"
 #elif defined (TARGET_LPC13XX)
-	#include "LPC13xx.h"
+	#include "core/LPC13xx.h"
 #elif defined (TARGET_LPC111X)
-	#include "LPC11xx.h"
+	#include "core/LPC11xx.h"
 #else
 	#error You must define a target: LPC17XX, LPC1343 or LPC111X
 #endif
 
-#include "cmsis_nvic.h"
+#include "core/cmsis_nvic.h"
 
 #ifdef __cplusplus
 }

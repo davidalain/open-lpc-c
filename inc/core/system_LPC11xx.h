@@ -1,6 +1,4 @@
 /**************************************************************************//**
- * $Id::                                                                  $
- *
  * @file     system_LPC11xx.h
  * @brief    CMSIS Cortex-M0 Device Peripheral Access Layer Header File
  *           for the NXP LPC11xx Device Series

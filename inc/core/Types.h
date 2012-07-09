@@ -35,5 +35,7 @@ typedef enum {
 } bool;
 #endif
 
+typedef void (*FunctionPointer)(void);
+
 
 #endif
