@@ -1,6 +1,4 @@
 /**************************************************************************//**
- * $Id::                                                                  $
- *
  * @file     system_LPC11xx.c
  * @brief    CMSIS Cortex-M0 Device Peripheral Access Layer Source File
  *           for the NXP LPC11xx Device Series
@@ -25,7 +23,6 @@
  ******************************************************************************/
 
 #if defined (TARGET_LPC111X)
- 
 #include <stdint.h>
 #include "core/LPC11xx.h"
 
@@ -340,7 +337,7 @@ void SystemCoreClockUpdate (void)            /* Get Core Clock Frequency      */
     case 15: wdt_osc = 3400000; break;
   }
   wdt_osc /= ((LPC_SYSCON->WDTOSCCTRL & 0x1F) << 1) + 2;
- 
+
   switch (LPC_SYSCON->MAINCLKSEL & 0x03) {
     case 0:                             /* Internal RC oscillator             */
       SystemCoreClock = __IRC_OSC_CLK;
@@ -394,7 +391,7 @@ void SystemCoreClockUpdate (void)            /* Get Core Clock Frequency      */
       break;
   }
 
-  SystemCoreClock /= LPC_SYSCON->SYSAHBCLKDIV;  
+  SystemCoreClock /= LPC_SYSCON->SYSAHBCLKDIV;
 
 }
 
@@ -451,6 +448,4 @@ void SystemInit (void)
   LPC_SYSCON->SYSMEMREMAP = SYSMEMREMAP_Val;
 #endif
 }
-
-
 #endif //compile if the target arch is this
