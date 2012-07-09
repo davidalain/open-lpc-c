@@ -1,24 +1,11 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * @file     DigitalOut.c
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    File with functions to control digital output.
+ * @version  V1.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-
+ ******************************************************************************/
 #include "peripherals/DigitalOut.h"
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
@@ -28,10 +15,15 @@ extern LPC_GPIO_TypeDef (* const LPC_GPIO[5]);
 #endif
 
 
+/**
+ * Initializes the peripheral and configures the pin to digital output.
+ *
+ * @param pin.
+ */
 void DigitalOut_Init (PinName pin)
 {
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 6); // This enable clock for GPIO pins
@@ -46,10 +38,17 @@ void DigitalOut_Init (PinName pin)
 #endif
 }
 
+/**
+ * Writes a digital value on pin.
+ * Out a low level on pin if value is zero, otherwise out high level on pin.
+ *
+ * @param pin
+ * @param value
+ */
 void DigitalOut_write (PinName pin, int32_t value) {
 
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	if (value)
@@ -65,10 +64,34 @@ void DigitalOut_write (PinName pin, int32_t value) {
 
 }
 
+/**
+ * Writes high level on pin.
+ *
+ * @param pin
+ */
+inline void DigitalOut_high(PinName pin){
+	DigitalOut_write(pin,1);
+}
+
+/**
+ * Writes low level on pin.
+ *
+ * @param pin
+ */
+inline void DigitalOut_low(PinName pin){
+	DigitalOut_write(pin,0);
+}
+
+/**
+ * Reads digital value of pin.
+ *
+ * @param pin
+ * @return 1 if has high level on pin, 0 if has low level on pin.
+ */
 int32_t DigitalOut_read (PinName pin){
 
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	return (LPC_GPIO[portNum]->DATA & (mask)) ? 1 : 0;

@@ -22,50 +22,82 @@
 
 #include "peripherals/SoftwareTimer.h"
 
-//uint8_t SoftwareTimer_STATE_DISABLE;
-//uint8_t SoftwareTimer_STATE_ENABLE;
-//uint8_t SoftwareTimer_STATE_OVERFLOW;
+#ifndef NUMBER_OF_SOFTWARE_TIMERS
+#define NUMBER_OF_SOFTWARE_TIMERS 4
+#endif
 
-uint16_t SoftwareTimer_Init(uint32_t maxCount){
-	_maxCounter = maxCount;
-	_state = STATE_DISABLE;
-	_counter = 0;
+typedef struct {
+	uint32_t counter;
+	uint32_t maxCounter;
+	SoftwareTimerState state;
+	FunctionPointer userHandler;
+} SoftwateTimerObj;
 
-	//TODO: NVIC_Controller Set timer handler (this);
+static SoftwateTimerObj _timers[NUMBER_OF_SOFTWARE_TIMERS];
+
+uint16_t SoftwareTimer_Init(uint16_t timerId, uint32_t timeInterval_us, FunctionPointer userHandler){
+
+	if(timerId >= NUMBER_OF_SOFTWARE_TIMERS){
+		return -1;
+	}
+
+	_timers[timerId].counter = 0;
+	_timers[timerId].maxCounter = timeInterval_us;
+	_timers[timerId].state = STATE_STOPED;
+	_timers[timerId].userHandler = userHandler;
 
 	return 0;
 }
 
-void SoftwareTimer_reset()
+void SoftwareTimer_reset(uint16_t timerId)
 {
-	_counter = 0;
+	if(timerId >= NUMBER_OF_SOFTWARE_TIMERS){
+		return;
+	}
+
+	_timers[timerId].counter = 0;
 }
 
-void SoftwareTimer_start()
+void SoftwareTimer_start(uint16_t timerId)
 {
-	_state = STATE_ENABLE;
+	if(timerId >= NUMBER_OF_SOFTWARE_TIMERS){
+		return;
+	}
+	_timers[timerId].state = STATE_RUNNING;
 }
 
-void SoftwareTimer_stop()
+void SoftwareTimer_stop(uint16_t timerId)
 {
-	_state = STATE_DISABLE;
+	if(timerId >= NUMBER_OF_SOFTWARE_TIMERS){
+		return;
+	}
+	_timers[timerId].state = STATE_STOPED;
 }
 
-uint8_t SoftwareTimer_getState()
+SoftwareTimerState SoftwareTimer_getState(uint16_t timerId)
 {
-	return _state;
+	if(timerId >= NUMBER_OF_SOFTWARE_TIMERS){
+		return STATE_DISABLE;
+	}
+	return _timers[timerId].state;
 }
 
-void SoftwareTimer_incCounter(uint32_t value)
+void SoftwareTimer_incrementTimers(uint32_t timeInterval_us)
 {
-	if(_state == STATE_ENABLE){
+	uint32_t timerId;
+	for(timerId = 0 ; timerId < NUMBER_OF_SOFTWARE_TIMERS ; timerId++){
 
-		_counter += value;
-		if(_counter >= _maxCounter){
+		if(_timers[timerId].state == STATE_RUNNING){
+			_timers[timerId].counter += timeInterval_us;
 
-			_state = STATE_OVERFLOW;
+			if(_timers[timerId].counter >= _timers[timerId].maxCounter){
+
+				_timers[timerId].counter -= _timers[timerId].maxCounter;
+				_timers[timerId].userHandler();
+			}
 
 		}
+
 	}
 
 }

@@ -29,27 +29,30 @@
 #endif
 
 static uint8_t* _rxBuffer[UART_NUM];
-static uint16_t _rxBufferSize[UART_NUM];
-static uint16_t _rxIndex[UART_NUM];
-static uint8_t* _txBuffer[UART_NUM];
-static uint16_t _txBufferSize[UART_NUM];
-static uint16_t _txBufferCurrentSize[UART_NUM];
-static uint16_t _txIndex[UART_NUM];
-static bool _txBufferIsEmpty[UART_NUM];
+static uint32_t _rxBufferSize[UART_NUM];
+static uint32_t _rxIndex[UART_NUM];
+//static uint8_t* _txBuffer[UART_NUM];
+//static uint16_t _txBufferSize[UART_NUM];
+//static uint16_t _txBufferCurrentSize[UART_NUM];
+//static uint16_t _txIndex[UART_NUM];
+//static bool _txBufferIsEmpty[UART_NUM];
 
-
-void Serial_Init(SerialPortNum portNum, uint8_t* allocatedTxBuffer, uint16_t txBufferSize, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize)
+//void Serial_Init(SerialPortNum portNum, uint8_t* allocatedTxBuffer, uint16_t txBufferSize, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize)
+void Serial_Init(SerialPortNum portNum, uint8_t* allocatedRxBuffer, uint16_t rxBufferSize)
 {
 
-	_txBufferSize[portNum] = txBufferSize;
-	_txBuffer[portNum] = allocatedTxBuffer;
-	_txIndex[portNum] = 0;
+	//	_txBufferSize[portNum] = txBufferSize;
+	//	_txBuffer[portNum] = allocatedTxBuffer;
+	//	_txBufferCurrentSize[UART_NUM] = 0;
+	//	_txIndex[portNum] = 0;
+	//_txBufferIsEmpty[portNum] = true;
 
 	_rxBufferSize[portNum] = rxBufferSize;
 	_rxBuffer[portNum] = allocatedRxBuffer;
 	_rxIndex[portNum] = 0;
 
 }
+
 
 void Serial_configure(
 		SerialPortNum port,
@@ -79,7 +82,8 @@ void Serial_configure(
 	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 12);
 	LPC_SYSCON->UARTCLKDIV = 0x1;     /* divided by 1 */
 
-	LPC_UART->LCR = (wordLength | stopBits | enableParity | parityType);
+	LPC_UART->LCR = 0x80 | (wordLength | stopBits | enableParity | parityType);
+	/* 0x80 enables DLAB */
 
 	regVal = LPC_SYSCON->UARTCLKDIV;
 	divFact = (((SystemCoreClock/LPC_SYSCON->SYSAHBCLKDIV)/regVal)/16)/baudrate ;	/*baud rate */
@@ -107,7 +111,8 @@ void Serial_configure(
 	NVIC_EnableIRQ(UART_IRQn);
 
 	/* Enable UART interrupt */
-	LPC_UART->IER = Serial_IER_RBR_MASK | Serial_IER_THRE_MASK | Serial_IER_RXL_MASK;
+	//LPC_UART->IER = Serial_IER_RBR_MASK | Serial_IER_THRE_MASK | Serial_IER_RXL_MASK;
+	LPC_UART->IER = Serial_IER_RBR_MASK | Serial_IER_RXL_MASK;
 
 #elif defined (TARGET_LPC17XX)
 	//TODO: implement for LPC1768
@@ -156,17 +161,17 @@ void Serial_default_handler(SerialPortNum portNum){
 	}else if((iirReg & Serial_IIR_INTID_MASK) == Serial_IIR_THRE_MASK)
 	{/* THRE interrupt */
 
-		//Ready to send next byte
-		if((lsrReg & Serial_LSR_THRE_MASK) != 0)
-		{
-			Serial_writeNext(portNum);
-		}
+		//		//Ready to send next byte
+		//		if((lsrReg & Serial_LSR_THRE_MASK) != 0)
+		//		{
+		//			Serial_writeNext(portNum);
+		//		}
 	}
 
 }
 
 
-uint16_t Serial_available(SerialPortNum port){
+uint32_t Serial_available(SerialPortNum port){
 	return (_rxIndex[port]);
 }
 
@@ -176,37 +181,47 @@ int16_t Serial_read(SerialPortNum port, uint8_t* buffer, uint16_t bufferSize){
 		return -1;
 	}
 
-	memcpy(buffer,_rxBuffer[port],_rxIndex[port]);
-	uint16_t size = _rxIndex[port];
+	uint32_t size = _rxIndex[port];
 	_rxIndex[port] = 0;
+	memcpy(buffer,_rxBuffer[port],size);
 
 	return size;
 }
 
 
 
-int8_t Serial_write(SerialPortNum port, uint8_t* data, uint16_t size){
+//int8_t Serial_write(SerialPortNum port, uint8_t* data, uint16_t size){
+//
+//	if(size > (_txBufferSize[port] - _txBufferCurrentSize[port])){
+//		return -1;
+//	}
+//
+//	uint8_t offset = _txBufferCurrentSize[port];
+//	uint8_t* txBufferUsingOffset = &(_txBuffer[port])[offset];
+//	memcpy(txBufferUsingOffset,data,size);
+//	_txBufferIsEmpty[port] = false;
+//	_txBufferCurrentSize[port] += size;
+//
+//	//Write data to serial port
+//	//When first byte is transmitted a transmission interrupt is generated
+//	//then remainder bytes is transmitted by interruption
+//	Serial_writeNext(port);
+//
+//
+//	return 0;
+//
+//}
 
-	if(_txBufferIsEmpty[port]){
+void Serial_write(SerialPortNum port, uint8_t* data, uint16_t size)
+{
+	while ( size != 0 )
+	{
+		while ( !(LPC_UART->LSR & Serial_LSR_THRE_MASK) );
+		LPC_UART->THR = *data;
 
-		if(size >= _txBufferSize[port]){
-			return -1;
-		}
-
-		memcpy(_txBuffer[port],data,size);
-		_txBufferIsEmpty[port] = 0;
-		_txBufferCurrentSize[port] = size;
-
-		//Write data to serial port
-		//Then first byte is transmitted a transmission interrupt is generated
-		//than remainder bytes is transmitted by interruption
-		_txIndex[port] = 0;
-		Serial_writeNext(port);
-
-		return 0;
+		data++;
+		size--;
 	}
-
-	return -1;
 }
 
 
@@ -217,11 +232,14 @@ void Serial_readNext(SerialPortNum port){
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 
-	if( _rxIndex < _rxBufferSize ){
+	if( _rxIndex[port] < _rxBufferSize[port] ){
 
 		//Receiver Buffer Register (RBR).
 		//Contains the next received character to be read.
 		(_rxBuffer[port])[(_rxIndex[port])++] = LPC_UART->RBR;
+	}else{
+		uint32_t dummy = LPC_UART->RBR; //
+		dummy++;
 	}
 
 
@@ -230,35 +248,42 @@ void Serial_readNext(SerialPortNum port){
 #endif
 }
 
-void Serial_writeNext(SerialPortNum port){
-
-#if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
-
-	if(_txBufferIsEmpty == false){
-
-		if(_txIndex < _txBufferCurrentSize){
-			//Write data to send in Transmit Holding Register (THR).
-			//The next character to be transmitted is written there.
-			LPC_UART->THR = (_txBuffer[port])[(_txIndex[port])++];
-		}else{
-			_txBufferIsEmpty[port] = true;
-			_txIndex[port] = 0;
-			_txBufferCurrentSize[port] = 0;
-		}
-
-	}
-
-
-#elif defined (TARGET_LPC17XX)
-	//TODO: Implement to LPC1768
-#endif
-
-}
+//void Serial_writeNext(SerialPortNum port){
+//
+//
+//	if(_txBufferIsEmpty[port] == false){
+//
+//		if(_txIndex[port] < _txBufferCurrentSize[port]){
+//
+//#if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
+//
+//			//Write data to send in Transmit Holding Register (THR).
+//			//The next character to be transmitted is written there.
+//			LPC_UART->THR = (_txBuffer[port])[(_txIndex[port])++];
+//
+//#elif defined (TARGET_LPC17XX)
+//			//TODO: Implement to LPC17XX
+//#endif
+//
+//			if(_txIndex[port] == _txBufferCurrentSize[port]){
+//				_txBufferIsEmpty[port] = true;
+//				_txIndex[port] = 0;
+//				_txBufferCurrentSize[port] = 0;
+//			}
+//		}
+//
+//	}
+//
+//}
 
 
 void Serial_clearBuffers(SerialPortNum port){
-	_txBufferIsEmpty[port] = true;
+	//_txBufferIsEmpty[port] = true;
+	uint8_t i = 0;
+	for(i = 0 ; i < _rxBufferSize[port] ; i++){
+		(_rxBuffer[port])[i] = 0;
+	}
 	_rxIndex[port] = 0;
-	_txIndex[port] = 0;
+	//_txIndex[port] = 0;
 }
 
