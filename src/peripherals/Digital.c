@@ -1,23 +1,11 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * @file     Digital.c
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    File with functions to control pullUp, pullDown and repeaterPull of pins.
+ * @version  V1.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ ******************************************************************************/
 
 #include "peripherals/Digital.h"
 
@@ -32,7 +20,11 @@ LPC_GPIO_TypeDef (* const LPC_GPIO[5]) = { LPC_GPIO0, LPC_GPIO1, LPC_GPIO2, LPC_
 volatile uint32_t* Digital_getIOConfigRegister(PinName pin);
 
 
-
+/**
+ * Disables pull on pin.
+ *
+ * @param pin
+ */
 void Digital_disablePull(PinName pin){
 	/*
 	4:3
@@ -46,7 +38,7 @@ void Digital_disablePull(PinName pin){
 	CLEAR_BIT(*ioconReg,3);
 
 #elif defined (TARGET_LPC17XX)
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 	volatile uint32_t * pincon = Digital_getIOConfigRegister(pin);
 	// Disable pull LPC1768 = 10b
 	CLEAR_BIT (*pincon, mask);
@@ -54,11 +46,17 @@ void Digital_disablePull(PinName pin){
 #endif
 }
 
+/**
+ * Enables pull up on pin.
+ *
+ * @param pin.
+ */
 void Digital_enablePullUp(PinName pin){
-	/*
-	4:3
-	10 Pull-up resistor enabled
-	 */
+/*
+ * LPC_IOCON->PIOn_x
+ * 4:3
+ * 10 Pull-up resistor enabled
+ */
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 
@@ -67,8 +65,8 @@ void Digital_enablePullUp(PinName pin){
 	CLEAR_BIT(*ioconReg,3);
 
 #elif defined (TARGET_LPC17XX)
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 	volatile uint32_t * pincon = Digital_getIOConfigRegister(pin);
 	// Enable pull-up LPC1768 = 00b
@@ -77,11 +75,17 @@ void Digital_enablePullUp(PinName pin){
 #endif
 }
 
+/**
+ * Enables pull down on pin.
+ *
+ * @param pin.
+ */
 void Digital_enablePullDown(PinName pin){
-	/*
-		4:3
-		01 Pull-down resistor enabled
-	 */
+/*
+ * LPC_IOCON->PIOn_x
+ * 4:3
+ * 01 Pull-down resistor enabled
+ */
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 
@@ -90,7 +94,7 @@ void Digital_enablePullDown(PinName pin){
 	CLEAR_BIT(*ioconReg,4);
 
 #elif defined (TARGET_LPC17XX)
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 	volatile uint32_t * pincon = Digital_getIOConfigRegister(pin);
 	// Enable pull-down LPC1768 = 11b
 	SET_BIT (*pincon, mask);
@@ -98,23 +102,22 @@ void Digital_enablePullDown(PinName pin){
 #endif
 }
 
+/**
+ * The repeater mode enables the pull-up resistor if the pin is at a logic HIGH and enables
+ * the pull-down resistor if the pin is at a logic LOW. This causes the pin to retain its last
+ * known state if it is configured as an input and is not driven externally. The state retention is
+ * not applicable to the Deep power-down mode. Repeater mode may typically be used to
+ * prevent a pin from floating (and potentially using significant power if it floats to an
+ * indeterminate state) if it is temporarily not driven.
+ *
+ * @param pin
+ */
 void Digital_enableRepeater(PinName pin){
-	/*
-	 * The repeater mode enables the pull-up resistor if the pin is at a logic HIGH and enables
-	 * the pull-down resistor if the pin is at a logic LOW. This causes the pin to retain its last
-	 * known state if it is configured as an input and is not driven externally. The state retention is
-	 * not applicable to the Deep power-down mode. Repeater mode may typically be used to
-	 * prevent a pin from floating (and potentially using significant power if it floats to an
-	 * indeterminate state) if it is temporarily not driven.
-	 *
-	 * See: User Manual LPC13XX
-	 */
-
-	/*
-		4:3
-		11 Repeater mode
-	 */
-
+/*
+ * LPC_IOCON->PIOn_x
+ * 4:3
+ * 11 Repeater mode
+ */
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 
@@ -123,7 +126,7 @@ void Digital_enableRepeater(PinName pin){
 	SET_BIT(*ioconReg,4);
 
 #elif defined (TARGET_LPC17XX)
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 	volatile uint32_t * pincon = Digital_getIOConfigRegister(pin);
 	// Enable repeater LPC1768 = 01b
 	SET_BIT (*pincon, mask);
@@ -131,10 +134,17 @@ void Digital_enableRepeater(PinName pin){
 #endif
 }
 
+
+/**
+ * Auxiliary function that returns the LPC_IOCON->PIO related to pin.
+ *
+ * @param pin
+ * @return pointer to LPC_IOCON->PIO
+ */
 volatile uint32_t* Digital_getIOConfigRegister(PinName pin){
 
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	volatile uint32_t *ioconReg = 0;

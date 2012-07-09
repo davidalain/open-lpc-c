@@ -1,23 +1,11 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * @file     DigitalIn.c
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    File with functions to control digital input.
+ * @version  V1.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ ******************************************************************************/
 
 #include "peripherals/DigitalIn.h"
 #include "peripherals/Digital.h"
@@ -33,10 +21,14 @@ extern LPC_GPIO_TypeDef (* const LPC_GPIO[5]);
 extern volatile uint32_t* Digital_getIOConfigRegister(PinName pin);
 
 
-
+/**
+ * Initialize the peripheral and configures this pin to digital input.
+ *
+ * @param pin
+ */
 void DigitalIn_Init(PinName pin){
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 6); // This enable clock for GPIO pins
@@ -50,13 +42,22 @@ void DigitalIn_Init(PinName pin){
 	LPC_GPIO[portNum]->FIODIR &= ~mask;
 #endif
 
+	volatile uint32_t* lpc_iocon_pioReg = Digital_getIOConfigRegister(pin);
+
+	(*lpc_iocon_pioReg) = (0xD0);
+
 }
 
-int32_t DigitalIn_read (PinName pin)
+/**
+ * Reads value of pin.
+ *
+ * @param pin
+ * @return 1 if has high level on pin, 0 if has low level on pin.
+ */
+uint8_t DigitalIn_read (PinName pin)
 {
-
-	uint16_t portNum = GET_PORT_NUM(pin);
-	uint16_t mask = GET_MASK_NUM(pin);
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
 
 #if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 	return (LPC_GPIO[portNum]->DATA & (mask)) ? 1 : 0;

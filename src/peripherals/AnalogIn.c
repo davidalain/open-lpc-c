@@ -1,23 +1,11 @@
-/*
- * open-lpc - ARM Cortex-M library
- * Authors:
- *    * Cristóvão Zuppardo Rufino <cristovaozr@gmail.com>
- *    * David Alain do Nascimento <davidalain89@gmail.com>
- * Version 1.0
+/**************************************************************************//**
  *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * @file     ATCommandManager.c
+ * @author	 David Alain <dnascimento@fitec.org.br>
+ * @brief    Analog to Digital Converter Controller
+ * @version  V1.0
  *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+ ******************************************************************************/
 
 #include "core/Types.h"
 #include "peripherals/AnalogIn.h"
@@ -33,7 +21,10 @@
 
 static uint32_t _clock;
 static bool _useIRQ;
-static uint32_t _readedValue[ADC_CHANNELS];
+static bool _enabledADC[ADC_CHANNELS] = {false};
+static uint32_t _readedValue[ADC_CHANNELS] = {0};
+
+extern FunctionPointer _userHandlerPtr[NUMBER_IO_PINS];
 
 /******************************************************************************************
  *
@@ -41,6 +32,11 @@ static uint32_t _readedValue[ADC_CHANNELS];
  *
  ******************************************************************************************/
 
+#if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
+extern LPC_GPIO_TypeDef (* const LPC_GPIO[4]);
+#elif defined (TARGET_LPC17XX)
+extern LPC_GPIO_TypeDef (* const LPC_GPIO[5]);
+#endif
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
 volatile uint32_t* AnalogIn_getLPC_IOCON_PIO(PinName pin);
@@ -49,7 +45,9 @@ uint32_t AnalogIn_readLPC_ADC_ADDRn(uint8_t channel);
 #endif
 
 uint8_t AnalogIn_getChannelNum(PinName pin);
-unsigned long AnalogIn_readLPC_ADC_Value(PinName pin);
+PinName AnalogIn_getPinName(uint8_t pin);
+uint32_t AnalogIn_readLPC_ADC_Value(PinName pin);
+
 
 
 /******************************************************************************************
@@ -58,26 +56,53 @@ unsigned long AnalogIn_readLPC_ADC_Value(PinName pin);
  *
  ******************************************************************************************/
 
-
+/**
+ * Initializes the Analog to Digital peripheral and configures this pin to analog input.
+ *
+ * @param pin PinName related to AD channel
+ * @param useIRQ Defines if the AD reading is by interruption or blocking;
+ *
+ * When useIRQ is true, the start and stop control of conversions must be do by the user (using AnalogIn_startConversion and AnalogIn_stopConversion functions);
+ * Using useIRQ equals to true the last conversation result is stored in a global variable an returned when getting.
+ *
+ * When useIRQ is false, the conversion is locking and return only the conversion is finished.
+ *
+ * @see PinName
+ * @see bool
+ */
 void AnalogIn_Init(PinName pin, bool useIRQ)
 {
+	uint8_t channel = AnalogIn_getChannelNum(pin);
 	_useIRQ = useIRQ;
+	_enabledADC[channel] = true;
+
+	NVIC_DisableIRQ(ADC_IRQn);
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+
 	/* Disable Power down bit to the ADC block. */
-	LPC_SYSCON->PDRUNCFG &= ~(0x1<<4);
+	CLEAR_BIT(LPC_SYSCON->PDRUNCFG, 4);
 
 	/* Enable AHB clock to the ADC. */
-	LPC_SYSCON->SYSAHBCLKCTRL |= (1<<13);
-
-	/* Unlike some other pins, for ADC test, all the pins need
-	  to set to analog mode. Bit 7 needs to be cleared according
-	  to design team. */
+	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 13);
+	/* enable clock for GPIO      */
+	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 6);
+	/* enable clock for IOCON     */
+	SET_BIT(LPC_SYSCON->SYSAHBCLKCTRL, 16);
 
 	volatile uint32_t* lpc_iocon_pioReg = AnalogIn_getLPC_IOCON_PIO(pin);
 
-	(*lpc_iocon_pioReg) &= ~0x8F;
-	(*lpc_iocon_pioReg) |= 0x01;
+	(*lpc_iocon_pioReg) &= ~0x8F;	/* Clear last configuration */
+	(*lpc_iocon_pioReg) |= (0x02);	/* Set to AD */
+
+	uint32_t portNum = GET_PORT_NUM(pin);
+	uint32_t mask = GET_MASK_NUM(pin);
+
+#if defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
+	LPC_GPIO[portNum]->DIR &= ~mask; 	/* configure GPIO as input */
+#elif defined (TARGET_LPC17XX)
+	LPC_GPIO[portNum]->FIODIR &= ~mask;	/* configure GPIO as input */
+#endif
 
 #elif defined (TARGET_LPC17XX)
 
@@ -93,25 +118,31 @@ void AnalogIn_Init(PinName pin, bool useIRQ)
 #endif
 
 	AnalogIn_setClock(AnalogIn_DEFAULT_CLOCK); //Default clock
+	//LPC_ADC->CR |= (23 << 8);
 
 	if(_useIRQ){
 
 		NVIC_EnableIRQ(ADC_IRQn);
 
+		uint8_t channel = AnalogIn_getChannelNum(pin);
+
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-		LPC_ADC->INTEN = 0x1FF;		/* Enable all ADC interrupts */
+		LPC_ADC->INTEN |= (1 << 8) | (0x1 << channel);		/* Enable Global ADC interrupts and for this channel too */
 #elif defined (TARGET_LPC17XX)
-		LPC_ADC->ADINTEN = 0x1FF;	/* Enable all ADC interrupts */
+		LPC_ADC->ADINTEN |= 0x1 << channel;	/* Enable ADC interrupts for this channel*/
 #endif
 
+		LPC_ADC->CR |= 1 << channel;
+
+		//AnalogIn_startConversion();
 	}else{
 
 		NVIC_DisableIRQ(ADC_IRQn);
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-		LPC_ADC->INTEN = 0x0;		/* Disable all ADC interrupts */
+		LPC_ADC->INTEN = 0x00;		/* Disable all ADC interrupts */
 #elif defined (TARGET_LPC17XX)
-		LPC_ADC->ADINTEN = 0x0;		/* Disable all ADC interrupts */
+		LPC_ADC->ADINTEN = 0x00;		/* Disable all ADC interrupts */
 #endif
 
 	}
@@ -119,10 +150,32 @@ void AnalogIn_Init(PinName pin, bool useIRQ)
 }
 
 
+/**
+ * Sets the user's function that will called when a end conversion interrupt is generated.
+ *
+ * @param pin PinName related to AD channel
+ * @param usrHandler user function
+ */
+void AnalogIn_setUserHandler(PinName pin, FunctionPointer usrHandler){
+	uint8_t pinIndex = GET_PIN_INDEX(pin);
+	_userHandlerPtr[pinIndex] = usrHandler;
+}
+
+
+/**
+ * Sets the clock of AD peripheral.
+ *
+ * @param clock New clock.
+ *
+ * Verify in user manual of your device, the minimum and maximum values for AD clock.
+ */
 void AnalogIn_setClock(uint32_t clock){
 	_clock = clock;
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-	LPC_ADC->CR = ((SystemCoreClock/LPC_SYSCON->SYSAHBCLKDIV)/_clock - 1)<<8;
+
+	LPC_ADC->CR &= 0xFFFF00FF;
+	LPC_ADC->CR |= ((((SystemCoreClock/LPC_SYSCON->SYSAHBCLKDIV)/_clock) - 1) & 0xFF) << 8;
+
 
 #elif defined (TARGET_LPC17XX)
 
@@ -158,6 +211,80 @@ void AnalogIn_setClock(uint32_t clock){
 #endif
 }
 
+/**
+ * Enables conversion of the AD channel related to pin.
+ * Note: this function not run the conversion, only enables the channel to be converted.
+ *
+ * @param pin AD channel.
+ *
+ * @see AnalogIn_startConversion
+ * @see AnalogIn_stopConversion
+ */
+void AnalogIn_enableConversion(PinName pin){
+	uint8_t channel = AnalogIn_getChannelNum(pin);
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+	LPC_ADC->CR |= (0x1 << channel);
+#elif defined (TARGET_LPC17XX)
+
+#endif
+}
+
+/**
+ * Disables conversion of the AD channel related to pin.
+ * Note: this function not stop the conversion, only disables the channel to be converted.
+ *
+ * @param pin AD channel.
+ *
+ * @see AnalogIn_startConversion
+ * @see AnalogIn_stopConversion
+ */
+void AnalogIn_disableConversion(PinName pin){
+	uint8_t channel = AnalogIn_getChannelNum(pin);
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+	LPC_ADC->CR &= ~(0x1 << channel);
+#elif defined (TARGET_LPC17XX)
+
+#endif
+}
+
+/**
+ * Starts the conversion of enabled AD channels.
+ */
+void AnalogIn_startConversion(){
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+	LPC_ADC->CR |= (0x1 << 24);
+#elif defined (TARGET_LPC17XX)
+
+#endif
+}
+
+
+/**
+ * Stops the all conversions (all channels).
+ */
+void AnalogIn_stopConversion(){
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+	LPC_ADC->CR &= 0xF8FFFFFF;	/* stop ADC now */
+#elif defined (TARGET_LPC17XX)
+	LPC_ADC->ADCR &= 0xF8FFFFFF;	/* stop ADC now */
+#endif
+}
+
+
+
+/**
+ * Reads the value in a AD channel specified by pin.
+ *
+ * @param pin PinName related to AD channel.
+ * @return the conversation result of specified channel.
+ *
+ * @see AnalogIn_Init
+ * Notes:
+ * 	If this peripheral was initialized using interruption then the result is the last conversation done in this channel, because this is managed by interruption;
+ * 	And if this peripheral was initialized using no interruption, then the channel is instantly read and the result value is returned only when the conversation finish.
+ *
+ *
+ */
 int32_t AnalogIn_read(PinName pin){
 
 	int32_t regVal, data;
@@ -186,11 +313,7 @@ int32_t AnalogIn_read(PinName pin){
 			}
 		}
 
-#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-		LPC_ADC->CR &= 0xF8FFFFFF;	/* stop ADC now */
-#elif defined (TARGET_LPC17XX)
-		LPC_ADC->ADCR &= 0xF8FFFFFF;	/* stop ADC now */
-#endif
+		AnalogIn_stopConversion();
 
 		if ( regVal & AnalogIn_CHANNEL_OVERRUN_MASK )	/* save data when it's not overrun, otherwise, return -1 */
 		{
@@ -210,13 +333,20 @@ int32_t AnalogIn_read(PinName pin){
 	return _readedValue[channel];
 }
 
-
+/**
+ * Handler to process interruption of end of conversion.
+ * This function is call always a AD channel ends some conversion.
+ */
 void AnalogIn_default_handler()
 {
-
 	uint32_t regVal;
 	uint32_t statReg;
 	uint8_t channel;
+	uint8_t flagChannel = 0;
+	uint32_t result_GDR_Reg = 0;
+
+	AnalogIn_stopConversion();
+	LPC_ADC->INTEN &= ~(0x1 << 8);	/* Disable Global ADC interruption */
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
 	statReg = LPC_ADC->STAT;		/* Read ADC will clear the interrupt */
@@ -224,69 +354,102 @@ void AnalogIn_default_handler()
 	statReg = LPC_ADC->ADSTAT;		/* Read ADC will clear the interrupt */
 #endif
 
-	for(channel = 0; channel < 8; channel++)
-	{
+	regVal = LPC_ADC->GDR;
+	channel = (regVal >> 24) & 0x07;	/* Get channel referred to last conversion */
+	result_GDR_Reg = (regVal >> 6) & 0x3FF;		/* Get the result value from ADC conversion */
 
-		if ( statReg & AnalogIn_STAT_OVERRUN_MASK )	/* check OVERRUN error first */
+	flagChannel = (statReg & (0x101 << channel));
+
+	if(_enabledADC[channel] && flagChannel){
+
+		if ( statReg & (0x100 << channel) )	/* check OVERRUN error first */
 		{
-			regVal = ((statReg & AnalogIn_STAT_OVERRUN_MASK) & (0x1 << (channel + 0x08))); //Check if this ADC channel overrun bit is set
 			/* if overrun, just read ADDR to clear */
 			/* regVal variable has been reused. */
-			if ( regVal )
-			{
-#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-				regVal = LPC_ADC->DR[channel];
-#elif defined (TARGET_LPC17XX)
-				regVal = AnalogIn_readLPC_ADC_ADDRn(channel);
-#endif
-			}
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-			LPC_ADC->CR &= 0xF8FFFFFF;	/* stop ADC now */
+			regVal = LPC_ADC->DR[channel];
 #elif defined (TARGET_LPC17XX)
-			LPC_ADC->ADCR &= 0xF8FFFFFF;	/* stop ADC now */
+			regVal = AnalogIn_readLPC_ADC_ADDRn(channel);
 #endif
 
-			return;
-		}//if ( OVERRUN )
-
-		if ( statReg & AnalogIn_STAT_ADINT_MASK )
+		}
+		else if ( statReg & AnalogIn_STAT_ADINT_MASK )
 		{
-			if ( (statReg & 0xFF) & (0x1 << channel) )
+			if ( statReg & (0x1 << channel) )
 			{
 
 #if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+				//_readedValue[channel] = result_GDR_Reg;
 				_readedValue[channel] = ( LPC_ADC->DR[channel] >> 6 ) & 0x3FF;
 #elif defined (TARGET_LPC17XX)
 				_readedValue[channel] = ( AnalogIn_readLPC_ADC_ADDRn(channel) >> 4 ) & 0xFFF;
 #endif
+
+				uint32_t pinIndex = GET_PIN_INDEX(AnalogIn_getPinName(channel));
+				if(_userHandlerPtr[pinIndex] != NULL){
+					(_userHandlerPtr[pinIndex])();
+				}
 			}
-
-
-#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
-			LPC_ADC->CR &= 0xF8FFFFFF;	/* stop ADC now */
-#elif defined (TARGET_LPC17XX)
-			LPC_ADC->ADCR &= 0xF8FFFFFF;	/* stop ADC now */
-#endif
 
 		}// if ( ADINT )
 
-	}// for
+	}// if enabled ADC
 
-	return;
+	LPC_ADC->INTEN |= (1 << 8); 	/* Enable Global ADC interruption */
+
+	//AnalogIn_startConversion();
 }
 
 
-unsigned long AnalogIn_readLPC_ADC_Value(PinName pin){
+/**
+ * Auxiliary function to read result of AD conversion directly on memory address.
+ *
+ * @param pin AD channel.
+ * @return result of AD conversion.
+ */
+uint32_t AnalogIn_readLPC_ADC_Value(PinName pin){
 
-	return *(unsigned long *)
+	return *(uint32_t *)
 			(LPC_ADC_BASE + AnalogIn_ADDR_OFFSET + AnalogIn_ADDR_INDEX * AnalogIn_getChannelNum(pin));
 
 }
 
+/**
+ * Return the correspondent PinName of AD channel.
+ *
+ * @param channel AD channel.
+ * @return PinName related to channel.
+ */
+PinName AnalogIn_getPinName(uint8_t channel){
+
+	PinName pin = AD0;
+
+	switch(channel){
+	case 0: pin = AD0;	break;
+	case 1: pin = AD1;	break;
+	case 2: pin = AD2; 	break;
+	case 3:	pin = AD3;	break;
+	case 4: pin = AD4;	break;
+	case 5: pin = AD5;	break;
+	case 6: pin = AD6;	break;
+	case 7: pin = AD7;	break;
+	default:
+		break;
+	}
+
+	return pin;
+}
+
+/**
+ * Return the correspondent AD channel of PinName.
+ *
+ * @param pin PinName related to channel.
+ * @return AD channel.
+ */
 uint8_t AnalogIn_getChannelNum(PinName pin){
 
-	uint16_t channel = 0;
+	uint32_t channel = 0;
 
 	switch(pin){
 	case AD0:	channel = 0;	break;
@@ -305,8 +468,11 @@ uint8_t AnalogIn_getChannelNum(PinName pin){
 	return channel;
 }
 
-#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
 
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+/**
+ * Auxiliary function to return a pointer to address memory of IOCON pin related to PinName.
+ */
 volatile uint32_t* AnalogIn_getLPC_IOCON_PIO(PinName pin){
 
 	uint8_t channel = AnalogIn_getChannelNum(pin);
@@ -335,7 +501,12 @@ volatile uint32_t* AnalogIn_getLPC_IOCON_PIO(PinName pin){
 
 
 #if defined (TARGET_LPC17XX)
-
+/**
+ * Auxiliary function to read result of AD conversion directly on memory address.
+ *
+ * @param pin AD channel.
+ * @return result of AD conversion.
+ */
 uint32_t AnalogIn_readLPC_ADC_ADDRn(uint8_t channel){
 
 	uint32_t regVal = 0;
