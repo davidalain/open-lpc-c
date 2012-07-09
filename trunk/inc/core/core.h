@@ -22,15 +22,10 @@
 #ifndef CORE_H_
 #define CORE_H_
 
-
 #if defined (TARGET_LPC111X)
-
 #include "core_cm0.h"
-
 #elif defined (TARGET_LPC13XX) || defined (TARGET_LPC17XX)
-
 #include "core_cm3.h"
-
 #endif
 
 #endif /* CORE_H_ */

@@ -35,6 +35,16 @@
 #error need definition of GET_PIN_INDEX(pin)
 #endif
 
+
+#if defined (TARGET_LPC111X) || defined (TARGET_LPC13XX)
+#define NUMBER_IO_PINS	(3 * 12 + 4)
+#elif defined (TARGET_LPC17XX)
+#define NUMBER_IO_PINS amount_of_pins_in_lpc17xx
+#else
+#error You must define the target architeture: TARGET_LPC111X, TARGET_LPC13XX or TARGET_LPC17XX
+#endif
+
+
 typedef enum {
 
 #if defined (TARGET_LPC17XX)
@@ -101,9 +111,9 @@ typedef enum {
 
 #elif defined (TARGET_LPC13XX) || defined (TARGET_LPC111X)
 
-/* This is due to protection: Only let here the available pins so that a PinName
- * reflects directly the pins.
- */
+	/* This is due to protection: Only let here the available pins so that a PinName
+	 * reflects directly the pins.
+	 */
 
 	// Port 0 - 11:0
 	P0_0 = 0,	P0_1, P0_2, P0_3, P0_4, P0_5, P0_6, P0_7,
@@ -136,7 +146,7 @@ typedef enum {
 	AD4 = P1_3,
 	AD5 = P1_4,
 	AD6 = P1_10,
-	AD7 = P1_11
+	AD7 = P1_11,
 
 
 	// TODO: Specify the LPCXpresso specific special pinnames
